@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SKYSEND | ติดตามพัสดุ</title>
+  <style>
+    :root{
+      --primary:#0ea5e9;
+      --primary-dark:#0284c7;
+      --bg:#f0f7ff;
+      --card:#ffffff;
+      --muted:#64748b;
+      --border:#e2e8f0;
+      --success:#16a34a;
+      --danger:#dc2626;
+      --radius:16px;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      font-family:Segoe UI, Tahoma, sans-serif;
+      background:linear-gradient(180deg,#eef1ff 0%, var(--bg) 250px);
+      color:#0f172a;
+    }
+
+    header{
+      background:linear-gradient(135deg,var(--primary),#38bdf8);
+      color:#fff;
+      padding:24px;
+      text-align:center;
+      box-shadow:0 6px 20px rgba(14,165,233,.35);
+    }
+
+    header h1{margin:0;font-size:44px;letter-spacing:1px;text-shadow:0 4px 16px rgba(0,0,0,.25)}
+    header p{margin:12px 0 0;font-size:20px;opacity:.95}
+
+    .container{
+      max-width:900px;
+      margin:0 auto;
+      padding:32px 20px 60px;
+    }
+
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:0 20px 40px rgba(0,0,0,.1);
+      padding:28px;
+      margin-bottom:28px;
+    }
+
+    .search-box{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .search-box input{
+      flex:1;
+      min-width:240px;
+      padding:14px 16px;
+      font-size:18px;
+      border-radius:999px;
+      border:2px solid var(--primary);
+      outline:none;
+      box-shadow:0 0 0 4px rgba(14,165,233,.15);
+    }
+
+    .search-box button{
+      padding:14px 26px;
+      border-radius:999px;
+      border:none;
+      background:var(--primary);
+      color:#fff;
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+      transition:background .15s ease, transform .05s ease;
+    }
+
+    .search-box button:hover{background:var(--primary-dark)}
+    .search-box button:active{transform:scale(.97)}
+
+    .result{
+      display:none;
+      margin-top:24px;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:140px 1fr;
+      gap:12px;
+      padding:10px 0;
+      border-bottom:1px dashed var(--border);
+    }
+
+    .row:last-child{border-bottom:none}
+
+    .label{color:var(--muted);font-weight:600}
+
+    .badge{
+      display:inline-block;
+      padding:6px 14px;
+      border-radius:999px;
+      font-weight:700;
+      font-size:13px;
+    }
+
+    .status-in{background:#dcfce7;color:var(--success)}
+    .status-out{background:#fee2e2;color:var(--danger)}
+
+    .timeline{
+      margin-top:20px;
+      padding-left:10px;
+      border-left:4px solid var(--primary);
+    }
+
+    .step{
+      margin-bottom:18px;
+      padding-left:10px;
+    }
+
+    .step h4{
+      margin:0 0 4px;
+      font-size:16px;
+      color:var(--primary);
+    }
+
+    .step p{
+      margin:2px 0;
+      font-size:14px;
+      color:#334155;
+    }
+
+    .not-found{
+      text-align:center;
+      padding:40px;
+      color:var(--danger);
+      font-weight:700;
+      display:none;
+    }
+
+    footer{
+      text-align:center;
+      color:var(--muted);
+      font-size:13px;
+      margin-top:40px;
+    }
+
+    @media(max-width:600px){
+      .row{grid-template-columns:1fr}
+      .label{font-size:13px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📦 SKYSEND Tracking</h1>
+  <p>กรอกหมายเลขพัสดุเพื่อตรวจสอบสถานะการจัดส่ง</p>
+</header>
+
+<div class="container">
+  <div class="card">
+    <div class="search-box">
+      <input id="trackInput" placeholder="เช่น SKY240001" />
+      <button onclick="searchParcel()">ติดตามพัสดุ</button>
+    </div>
+
+    <div id="result" class="result">
+      <h2>ข้อมูลพัสดุ</h2>
+
+      <div class="row"><div class="label">Tracking</div><div id="r-track"></div></div>
+      <div class="row"><div class="label">วันที่เข้าระบบ</div><div id="r-date"></div></div>
+      <div class="row"><div class="label">สนามบินต้นทาง</div><div id="r-aot"></div></div>
+      <div class="row"><div class="label">ผู้ส่ง</div><div id="r-sender"></div></div>
+      <div class="row"><div class="label">ที่อยู่ปลายทาง</div><div id="r-address"></div></div>
+      <div class="row"><div class="label">น้ำหนัก</div><div id="r-weight"></div></div>
+      <div class="row"><div class="label">สถานะ</div><div id="r-status"></div></div>
+
+      <h3>🧭 ความคืบหน้าพัสดุ</h3>
+      <div id="timeline" class="timeline"></div>
+    </div>
+
+    <div id="notFound" class="not-found">❌ ไม่พบหมายเลขพัสดุในระบบ</div>
+  </div>
+
+  <!-- HELP & SUPPORT -->
+  <div class="card">
+    <h2>🆘 ติดต่อความช่วยเหลือ</h2>
+    <p style="color:var(--muted);margin-top:4px">หากมีปัญหาเกี่ยวกับพัสดุหรือการติดตาม กรุณาเลือกช่องทางด้านล่าง</p>
+
+    <div class="row">
+      <div class="label">📞 Call Center</div>
+      <div>02-123-4567 (ทุกวัน 08:00 - 20:00)</div>
+    </div>
+
+    <div class="row">
+      <div class="label">💬 Line Official</div>
+      <div><a href="#" style="color:var(--primary);font-weight:700;text-decoration:none">@skysend_support</a></div>
+    </div>
+
+    <div class="row">
+      <div class="label">📧 Email</div>
+      <div><a href="mailto:support@skysend.co" style="color:var(--primary);font-weight:700;text-decoration:none">support@skysend.co</a></div>
+    </div>
+
+    <h3 style="margin-top:20px">📨 ส่งคำร้องขอความช่วยเหลือ</h3>
+  <div class="row">
+  <div class="label">ชื่อผู้ติดต่อ</div>
+  <div>
+    <input id="helpName" placeholder="ชื่อ-นามสกุล"
+      style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border)">
+  </div>
+</div>
+
+<div class="row">
+  <div class="label">อีเมล</div>
+  <div>
+    <input id="helpEmail" type="email" placeholder="example@email.com"
+      style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border)">
+  </div>
+</div>
+
+    <div class="row">
+      <div class="label">Tracking</div>
+      <div><input id="helpTrack" placeholder="เช่น SKY240001" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border)"></div>
+    </div>
+
+    <div class="row">
+      <div class="label">หัวข้อ</div>
+      <div>
+        <select id="helpTopic" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border)">
+          <option value="">-- เลือกหัวข้อ --</option>
+          <option value="delay">พัสดุล่าช้า</option>
+          <option value="lost">พัสดุสูญหาย</option>
+          <option value="damage">พัสดุเสียหาย</option>
+          <option value="address">แก้ไขที่อยู่</option>
+          <option value="other">อื่นๆ</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="label">รายละเอียด</div>
+      <div>
+        <textarea id="helpDetail" rows="4" placeholder="อธิบายปัญหาของคุณ" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border)"></textarea>
+      </div>
+    </div>
+
+    <div style="text-align:right;margin-top:10px">
+      <button onclick="submitHelp()" style="padding:12px 22px;border-radius:999px;border:none;background:var(--primary);color:#fff;font-weight:700;cursor:pointer">ส่งคำร้อง</button>
+    </div>
+
+    <div id="helpMsg" style="display:none;margin-top:12px;color:var(--success);font-weight:700">✅ ระบบได้รับคำร้องของคุณแล้ว เจ้าหน้าที่จะติดต่อกลับโดยเร็ว</div>
+  </div>
+
+  <footer>
+    SKYSEND Logistics System © 2026 | Customer Tracking Portal
+  </footer>
+</div>
+
+<script>
+// =====================
+// DEMO DATABASE (ใช้โครงสร้างเดียวกับหลังบ้าน)
+// =====================
+const parcels = [];
+const AOTS = ['BKK','DMK','CNX','HKT','HDY','CEI'];
+
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function formatDate(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
+
+function addMinutes(dateObj, minutes) {
+  const d = new Date(dateObj.getTime());
+  d.setMinutes(d.getMinutes() + minutes);
+  return formatDate(d);
+}
+
+function dateFromTracking(track) {
+  const seed = hashCode(track);
+  const now = new Date();
+
+  const day = 1 + (seed % 15);
+  const hour = seed % 24;
+  const minute = Math.floor(seed / 24) % 60;
+
+  return new Date(now.getFullYear(), now.getMonth(), day, hour, minute, 0);
+}
+
+// Seed 100 parcels
+for (let i = 0; i < 100; i++) {
+  const trackId = 'SKY' + (240001 + i);
+  const baseDate = dateFromTracking(trackId);
+  const baseTime = formatDate(baseDate);
+
+  const events = [
+    { point: 'รับจากเครื่อง Kiosk', by: 'เจ้าหน้าที่ Kiosk', phone: '0800000000', time: baseTime },
+    { point: 'คัดแยกคลัง', by: 'พนักงานคลัง', phone: '0811111111', time: addMinutes(baseDate, 45) },
+    { point: 'เตรียมส่งออก', by: 'เจ้าหน้าที่ขนส่ง', phone: '0822222222', time: addMinutes(baseDate, 120) }
+  ];
+
+  parcels.push({
+    track: trackId,
+    sentAt: baseTime,
+    aot: AOTS[i % AOTS.length],
+    sender: 'SKYSEND Customer',
+    address: 'ปลายทางในประเทศไทย',
+    weight: 300 + (i * 7) % 700,
+    status: i % 2 === 0 ? 'อยู่คลัง' : 'ส่งออกแล้ว',
+    events
+  });
+}
+
+// =====================
+// SEARCH FUNCTION
+// =====================
+function searchParcel() {
+  const input = document.getElementById('trackInput').value.trim().toUpperCase();
+  const result = document.getElementById('result');
+  const notFound = document.getElementById('notFound');
+
+  result.style.display = 'none';
+  notFound.style.display = 'none';
+
+  if (!input) return;
+
+  const p = parcels.find(x => x.track === input);
+
+  if (!p) {
+    notFound.style.display = 'block';
+    return;
+  }
+
+  document.getElementById('r-track').innerText = p.track;
+  document.getElementById('r-date').innerText = p.sentAt;
+  document.getElementById('r-aot').innerText = p.aot;
+  document.getElementById('r-sender').innerText = p.sender;
+  document.getElementById('r-address').innerText = p.address;
+  document.getElementById('r-weight').innerText = p.weight + ' g';
+
+  const statusEl = document.getElementById('r-status');
+  statusEl.innerHTML = `<span class="badge ${p.status === 'อยู่คลัง' ? 'status-in' : 'status-out'}">${p.status}</span>`;
+
+  const timeline = document.getElementById('timeline');
+  timeline.innerHTML = '';
+
+  p.events.forEach((e, i) => {
+    timeline.innerHTML += `
+      <div class="step">
+        <h4>${i + 1}. ${e.point}</h4>
+        <p>👤 ${e.by}</p>
+        <p>⏰ ${e.time}</p>
+      </div>
+    `;
+  });
+
+  result.style.display = 'block';
+}
+
+// Allow Enter
+const ti = document.getElementById('trackInput');
+ti.addEventListener('keyup', e => {
+  if (e.key === 'Enter') searchParcel();
+});
+// =====================
+// HELP SUBMIT (DEMO)
+// =====================
+function submitHelp() {
+function submitHelp() {
+  const name = document.getElementById('helpName').value.trim();
+  const email = document.getElementById('helpEmail').value.trim();
+  const t = document.getElementById('helpTrack').value.trim();
+  const topic = document.getElementById('helpTopic').value;
+  const detail = document.getElementById('helpDetail').value.trim();
+
+  if (!name || !email || !t || !topic || !detail) {
+    alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+    return;
+  }
+
+  // ตรวจรูปแบบอีเมลอย่างง่าย
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRe.test(email)) {
+    alert('กรุณากรอกอีเมลให้ถูกต้อง');
+    return;
+  }
+
+  // Demo only: แสดงข้อความสำเร็จ
+  document.getElementById('helpMsg').style.display = 'block';
+
+  // Reset form
+  document.getElementById('helpName').value = '';
+  document.getElementById('helpEmail').value = '';
+  document.getElementById('helpTrack').value = '';
+  document.getElementById('helpTopic').value = '';
+  document.getElementById('helpDetail').value = '';
+}
+
+
+  // Demo only: แสดงข้อความสำเร็จ
+  document.getElementById('helpMsg').style.display = 'block';
+
+  document.getElementById('helpTrack').value = '';
+  document.getElementById('helpTopic').value = '';
+  document.getElementById('helpDetail').value = '';
+}
+
+</script>
+
+</body>
+</html>
